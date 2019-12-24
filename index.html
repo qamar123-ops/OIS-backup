@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>OIS Framework</title>
+    <!--
+      STYLESHEETS STARTS HERE
+   -->
+    <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css" />
+    <link href="https://fonts.googleapis.com/css?family=Assistant:300,400,600" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css"> <!-- font awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@8/dist/sweetalert2.min.css" id="theme-styles">
+    <!--sweet alert-->
+    <link rel="stylesheet" href="scss/style.css" type='text/css' media='all' />
+    <meta name="theme-color" content="#ff6600" />
+    <meta name="msapplication-navbutton-color" content="#ff6600">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#ff6600">
+    <!--
+   STYLESHEETS ENDS HERE
+  -->
+</head>
+
+<body>
+    <div id="app">
+        <navigation></navigation>
+        <div id="content">
+            <sidebar></sidebar>
+            <div class="inner-content">
+                <div id="loading" v-bind:style="loading ? {display:'block'}: {display:'none'} "></div>
+                <globalconfiguration></globalconfiguration>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/jquery-3.4.1.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/datatables.min.js"></script>
+    <script src="js/dataTables.bootstrap4.js"></script>
+    <script src="js/simplebar.js"></script>
+    <script src="js/scripts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/http-vue-loader@1.4.1/src/httpVueLoader.min.js"></script>
+    <script src="js/vue.js"></script>
+    <script src="js/vuex.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/7.29.2/sweetalert2.all.js"></script>
+
+    <script>
+
+        Vue.use(Vuex);
+        Vue.prototype.$http = axios;
+
+        const store = new Vuex.Store({
+            namespaced: true,
+            state: {
+                isAdd: true,
+                globalconfigurations: [],
+                editConfiguration: [],
+                editConfiguration: {
+                    ConfigId: "",
+                    Value: "",
+                    Desc: "",
+                    Active: null
+                },
+                globalconfiguration: {
+                    ConfigId: "",
+                    Value: "",
+                    Desc: "",
+                    Active: null
+                },
+                newconfiguration: {
+                    ConfigId: "",
+                    Value: "",
+                    Desc: "",
+                    Active: null
+                },
+            },
+            getters: {
+                allConfigurations: state => state.globalconfigurations,
+                editConfiguration: state => state.editConfiguration,
+                getIsAddState: state => state.isAdd,
+            },
+            mutations: {
+                setGlobalConfigurations: (state, payload) => (state.globalconfigurations = payload),
+                newConfiguration: (state, payload) => state.globalconfigurations.push(payload),
+                updateArticle(state, payload) {
+                    $.each(payload, function (key, value) {
+                        newconfiguration[key] = value;
+                    });
+
+                    state.isAdd = true;
+
+                },
+                editConfiguration: (state, payload) => (state.editConfiguration = payload, state.isAdd = false),
+                removeGlobalConfiguration: (state, payload) => (state.globalconfigurations = state.globalconfigurations.filter(globalconfiguration => globalconfiguration.ConfigId !== payload)),
+            },
+            actions: {
+                async fetchData({ commit }) {
+                    debugger;
+                    axios({
+                        url: `/GlobalConfig/GetAllGlobalConfigs`,
+                        method: "get",
+                    }).then(response => {
+                        commit('setGlobalConfigurations', response.data);
+                        setTimeout(() => {
+                            $(".table-responsive #table_dt").DataTable();
+                        }, 50);
+
+
+                    })
+                        .catch(function (response) {
+                            console.log(response, "exception");
+                        });
+                },
+                async postData({ commit, state }, payload) {
+
+                    if (state.isAdd) {
+                        axios({
+                            method: "post",
+                            url: "/GlobalConfig/AddGlobalConfig",
+                            data: payload,
+                            headers: {
+                                "Content-type": "application/json; charset=UTF-8"
+                            }
+                        })
+                            .then(response => {
+                                if (response.data != null && response.data.IsSuccess) {
+                                    commit('newConfiguration', response.data.Payload)
+                                }
+
+                            })
+                            .catch(function (response) {
+                                console.log(response, "exception");
+                            });
+                    }
+                    else {
+                        axios({
+                            url: "/GlobalConfig/UpdateGlobalConfig",
+                            method: "post",
+                            data: payload,
+                            headers: {
+                                "Content-type": "application/json; charset=UTF-8"
+                            }
+                        }).then(response => {
+                            if (response.data != null && response.data.IsSuccess) {
+                                commit('updateArticle', response.data.Payload)
+                            }
+                        });
+                    }
+                },
+                async editData({ commit }, postData) {
+
+                    newconfiguration = postData;
+
+
+                    axios({
+                        url: `/GlobalConfig/GetGlobalConfigById?configId=${postData.ConfigId}`,
+                        method: "get",
+                    }).then(response => {
+                        console.log(response.data);
+                        commit('editConfiguration', response.data, false);
+                    })
+                        .catch(function (response) {
+                            console.log(response, "exception");
+                        });
+                },
+                async deleteData({ commit }, id) {
+                    axios({
+                        url: `/GlobalConfig/DeleteGlobalConfig?configId=${id}`,
+                        method: "delete",
+                        headers: {
+                            "Content-type": "application/json; charset=UTF-8"
+                        }
+                    }).then(response => {
+                        if (response.data != null && response.data.IsSuccess) {
+                            Swal.fire("Deleted!", "Your data has been deleted.", "success");
+                            commit('removeGlobalConfiguration', id);
+                        }
+
+                    })
+                }
+            }
+        })
+        new Vue({
+            el: '#app',
+            store,
+            data: {
+                user: "",
+                loading: 'true',
+            },
+            mounted() {
+                setTimeout(() => {
+                    this.loading = false
+                }, 500)
+            },
+            components: {
+                navigation: httpVueLoader("js/components/navigation.vue"),
+                sidebar: httpVueLoader("js/components/sidebar.vue"),
+                globalconfiguration: httpVueLoader("js/components/globalconfiguration.vue"),
+            },
+        })
+    </script>
+
+
+
+</body>
+
+</html>

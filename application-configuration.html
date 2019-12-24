@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html;">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>OIS Framework</title>
+    <!--
+      STYLESHEETS STARTS HERE
+   -->
+    <link rel="stylesheet" href="https://cdn.linearicons.com/free/1.0.0/icon-font.min.css" />
+    <link href="https://fonts.googleapis.com/css?family=Assistant:300,400,600" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="font-awesome-4.7.0/css/font-awesome.min.css"> <!-- font awesome -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@8/dist/sweetalert2.min.css" id="theme-styles">
+    <!--sweet alert-->
+    <link rel="stylesheet" href="scss/style.css" type='text/css' media='all' />
+    <meta name="theme-color" content="#ff6600" />
+    <meta name="msapplication-navbutton-color" content="#ff6600">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="#ff6600">
+    <!--
+   STYLESHEETS ENDS HERE
+  -->
+    <style>
+        .v-select {
+            width: 15% !important;
+            position: absolute !important;
+            right: 36px !important;
+            top: 189px !important;
+            z-index: 99999 !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="app">
+        <navigation></navigation>
+        <div id="content">
+            <sidebar></sidebar>
+            <div class="inner-content">
+                <div id="loading" v-bind:style="loading ? {display:'block'}: {display:'none'} "></div>
+                <applicationconfiguration></applicationconfiguration>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/jquery-3.4.1.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/datatables.min.js"></script>
+    <script src="js/dataTables.bootstrap4.js"></script>
+    <script src="js/simplebar.js"></script>
+    <script src="js/scripts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/http-vue-loader@1.4.1/src/httpVueLoader.min.js"></script>
+    <script src="js/vue.js"></script>
+    <script src="js/vuex.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.19.0/axios.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/limonte-sweetalert2/7.29.2/sweetalert2.all.js"></script>
+
+    <script>
+
+        Vue.use(Vuex);
+        Vue.prototype.$http = axios;
+
+        const store = new Vuex.Store({
+            namespaced: true,
+            state: {
+                isAdd: true,
+                applicationconfigurations: [],
+                editApplicationConfiguration: [],
+                editApplicationConfiguration: {
+                    ConfigId: "",
+                    Value: "",
+                    Desc: "",
+                    Active: null,
+                    Type: null,
+                    AppId: ""
+                },
+                applicationconfiguration: {
+                    ConfigId: "",
+                    Value: "",
+                    Desc: "",
+                    Active: null,
+                    Type: null,
+                    AppId: ""
+                },
+                getAllApplications: [],
+                newconfiguration: {
+                    ConfigId: "",
+                    Value: "",
+                    Desc: "",
+                    Active: null,
+                    Type: null,
+                    AppId: ""
+                },
+            },
+            getters: {
+                getAllApplications: state => state.getAllApplications,
+                allApplicationConfiguration: state => state.applicationconfigurations,
+                editApplicationConfiguration: state => state.editApplicationConfiguration,
+                getIsAddState: state => state.isAdd,
+            },
+            mutations: {
+                SETAPPLICATIONCONFIG: (state, payload) => (state.applicationconfigurations = payload),
+                GETAPPLICATIONS: (state, payload) => (state.getAllApplications = payload),
+                NEWCONFIGURATION: (state, payload) => state.applicationconfigurations.push(payload),
+                UPDATEARTICLE(state, payload) {
+                    $.each(payload, function (key, value) {
+                        newconfiguration[key] = value;
+                    });
+
+                    state.isAdd = true;
+
+                },
+                EDITAPPLICATIONCONFIGURATION: (state, payload) => (state.editApplicationConfiguration = payload, state.isAdd = false),
+                REMOVEAPPLICATIONCONFIGURATION: (state, payload) => (state.applicationconfigurations = state.applicationconfigurations.filter(applicationconfiguration => applicationconfiguration.ConfigId !== payload.ConfigId && applicationconfiguration.AppId !== payload.AppId)),
+            },
+            actions: {
+                async selectApps({ commit }) {
+                    axios({
+                        url: `/AppConfig/GetAllApplications`,
+                        method: "get",
+                        headers: {
+                            "Content-type": "application/json; charset=UTF-8"
+                        }
+                    }).then(response => {
+                        commit('GETAPPLICATIONS', response.data);
+                    })
+                        .catch(function (response) {
+                            console.log(response, "exception");
+                        });
+                },
+                async onApplicationChange({ commit }, appId) {
+
+                    axios({
+                        url: `/AppConfig/GetAppConfigByAppId?appId=${appId}`,
+                        method: "get",
+                        headers: {
+                            "Content-type": "application/json; charset=UTF-8"
+                        }
+                    }).then(response => {
+                        commit('SETAPPLICATIONCONFIG', response.data);
+                        setTimeout(() => {
+                            $(".table-responsive #applicationconfiguration_table").DataTable();
+                        }, 50);
+                    })
+                        .catch(function (response) {
+                            console.log(response, "exception");
+                        });
+
+                },
+                async postData({ commit, state }, payload) {
+
+                    if (state.isAdd) {
+                        axios({
+                            method: "post",
+                            url: "/AppConfig/AddAppConfig",
+                            data: payload,
+                            headers: {
+                                "Content-type": "application/json; charset=UTF-8"
+                            }
+                        })
+                            .then(response => {
+                                if (response.data != null && response.data.IsSuccess) {
+                                    commit('NEWCONFIGURATION', response.data.Payload)
+                                }
+
+                            })
+                            .catch(function (response) {
+                                console.log(response, "exception");
+                            });
+                    }
+                    else {
+                        axios({
+                            url: "/AppConfig/UpdateAppConfig",
+                            method: "post",
+                            data: payload,
+                            headers: {
+                                "Content-type": "application/json; charset=UTF-8"
+                            }
+                        }).then(response => {
+                            if (response.data != null && response.data.IsSuccess) {
+                                commit('UPDATEARTICLE', response.data.Payload)
+                            }
+                        });
+                    }
+                },
+                async editData({ commit }, postData) {
+
+                    newconfiguration = postData;
+
+
+                    axios({
+                        url: `/AppConfig/GetAppConfigById?configId=${postData.ConfigId}&appId=${postData.AppId}`,
+                        method: "get",
+                    }).then(response => {
+                        commit('EDITAPPLICATIONCONFIGURATION', response.data, false);
+                    })
+                        .catch(function (response) {
+                            console.log(response, "exception");
+                        });
+                },
+                async deleteData({ commit }, postData) {
+                    axios({
+                        url: `/AppConfig/DeleteAppConfig?configId=${postData.ConfigId}&appId=${postData.AppId}`,
+                        method: "delete",
+                        headers: {
+                            "Content-type": "application/json; charset=UTF-8"
+                        }
+                    }).then(response => {
+                        if (response.data != null && response.data.IsSuccess) {
+                            Swal.fire("Deleted!", "Your data has been deleted.", "success");
+                            commit('REMOVEAPPLICATIONCONFIGURATION', postData);
+                        }
+
+                    })
+                }
+            }
+        })
+        new Vue({
+            el: '#app',
+            store,
+            data: {
+                user: "",
+                loading: 'true',
+            },
+            mounted() {
+                setTimeout(() => {
+                    this.loading = false
+                }, 500)
+            },
+            components: {
+                navigation: httpVueLoader("js/components/navigation.vue"),
+                sidebar: httpVueLoader("js/components/sidebar.vue"),
+                applicationconfiguration: httpVueLoader("js/components/applicationconfiguration.vue"),
+            },
+        })
+    </script>
+
+</body>
+
+</html>
